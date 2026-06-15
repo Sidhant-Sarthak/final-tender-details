@@ -7,7 +7,6 @@ import json
 import base64
 import random
 import logging
-import sqlite3
 import threading
 from queue import Queue, Empty
 from concurrent.futures import ThreadPoolExecutor
@@ -18,8 +17,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configuration
-SOURCE_DB = "../tenders.db"  # Path to the source metadata DB relative to final-tender-details
-LOG_FILE = "../logs/scrape_details.log"
+LOG_FILE = "scrape_details.log"
 MAX_THREADS = 10
 MAX_RETRIES = 5
 BACKOFF_FACTOR = 1.5
@@ -39,7 +37,6 @@ BYPASS_KEY_B64 = "OGQ2NzAxYTMwZTJhNTIxMGNiNmEwM2EzNmNhYWZhODk="
 BASE_REFERER = "https://eprocure.gov.in/cppp/tendersearch/cpppdata/bydGVuZGVyQTEzaDFBRFZBTkNFRCBXRUFQT05TIEFORCBFUVVJUE1FTlQgSU5ESUEgTFRELUFXRUlMQTEzaDFzZWxlY3RBMTNoMW51bGxBMTNoMW51bGw="
 
 # Configure logging
-os.makedirs("../logs", exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [%(threadName)s] %(message)s",
@@ -71,7 +68,6 @@ def api_writer_worker():
     def send_batch(records_batch):
         for attempt in range(3):
             try:
-                # verify=False ignores self-signed certificate warnings
                 response = requests.post(endpoint, json=records_batch, headers=headers, timeout=25, verify=False)
                 if response.status_code == 200:
                     logger.info(f"Successfully uploaded batch of {len(records_batch)} records to VPS.")
@@ -109,23 +105,27 @@ def api_writer_worker():
         send_batch(batch)
     logger.info("API writer thread stopped.")
 
-def get_already_scraped_batch(internal_ids: List[str]) -> set:
-    """Queries the VPS in one bulk batch request to check which IDs already exist."""
+def get_tenders_from_api(job_index: int, total_jobs: int) -> list:
+    """Fetches the partitioned list of remaining targets to scrape directly from the VPS API."""
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    endpoint = f"{API_URL.rstrip('/')}/api/tender-details/check-batch"
+    endpoint = f"{API_URL.rstrip('/')}/api/tenders?job_index={job_index}&total_jobs={total_jobs}"
     
     for attempt in range(3):
         try:
-            response = requests.post(endpoint, json=internal_ids, headers=headers, timeout=30, verify=False)
+            response = requests.get(endpoint, headers=headers, timeout=35, verify=False)
             if response.status_code == 200:
-                return set(response.json().get("exists", []))
+                data = response.json()
+                logger.info(f"VPS Stats: Total unscraped tenders={data.get('total_unscraped', 0)}")
+                return data.get("tenders", [])
+            else:
+                logger.error(f"Failed to fetch tenders from VPS: HTTP {response.status_code}: {response.text}")
         except Exception as e:
-            logger.error(f"Error checking batch existence from VPS: {e}")
+            logger.error(f"Error fetching tenders from VPS API: {e}")
         time.sleep(2 ** attempt)
-    return set()
+    return []
 
 def construct_bypass_url(detail_url):
     """Transforms captcha-bound URL into a bypassed URL."""
@@ -189,9 +189,14 @@ def parse_detail_page(html_content):
     return cleaned_details
 
 def worker_thread(row, stats):
-    """Processes a single tender row, parses, and queues writes."""
-    internal_id, tender_id, detail_url = row
+    """Processes a single tender, parses, and queues writes."""
+    internal_id = row.get("internal_id")
+    tender_id = row.get("tender_id")
+    detail_url = row.get("detail_url")
     
+    if not internal_id or not detail_url:
+        return
+        
     # Check if we are approaching the GHA runner time limit
     if time.time() - START_TIME > MAX_RUN_TIME:
         return
@@ -261,53 +266,20 @@ def worker_thread(row, stats):
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="Distributed Deep Details Scraper")
+    parser = argparse.ArgumentParser(description="Distributed Deep Details Scraper via API")
     parser.add_argument("--job-index", type=int, default=0, help="0-based runner index")
     parser.add_argument("--total-jobs", type=int, default=20, help="Total number of runners")
     args = parser.parse_args()
     
-    if not os.path.exists(SOURCE_DB):
-        logger.error(f"Source database {SOURCE_DB} not found!")
-        sys.exit(1)
-        
-    # Fetch all active metadata from local SQLite DB
-    conn = sqlite3.connect(SOURCE_DB)
-    cursor = conn.cursor()
-    cursor.execute("SELECT internal_id, tender_id, detail_url FROM tenders WHERE status = 'active' ORDER BY internal_id")
-    all_tenders = cursor.fetchall()
-    conn.close()
-    
-    # 1. Distribute tasks dynamically via job-index partition allocation
-    total_tenders = len(all_tenders)
-    chunk_size = (total_tenders + args.total_jobs - 1) // args.total_jobs
-    start_idx = args.job_index * chunk_size
-    end_idx = min(start_idx + chunk_size, total_tenders)
-    my_tenders = all_tenders[start_idx:end_idx]
-    
-    logger.info(f"Runner {args.job_index}/{args.total_jobs} assigned to tenders range: {start_idx} to {end_idx} (Total: {len(my_tenders)})")
-    
-    if not my_tenders:
-        logger.info("No tasks assigned to this runner.")
-        return
-        
-    # 2. Query VPS in batch requests to check which assigned IDs already exist in Postgres
-    logger.info("Checking existing records against VPS...")
-    my_ids = [row[0] for row in my_tenders]
-    
-    # Split queries into batches of 500 to keep HTTP payloads safe
-    scraped_ids = set()
-    for i in range(0, len(my_ids), 500):
-        batch = my_ids[i:i+500]
-        scraped_ids.update(get_already_scraped_batch(batch))
-        
-    # Filter out already scraped records
-    tenders_to_scrape = [t for t in my_tenders if t[0] not in scraped_ids]
+    # 1. Fetch assigned targets directly from VPS API
+    logger.info("Fetching assigned tasks from VPS API...")
+    tenders_to_scrape = get_tenders_from_api(args.job_index, args.total_jobs)
     total_to_scrape = len(tenders_to_scrape)
     
-    logger.info(f"Already scraped: {len(scraped_ids)} | Left to scrape: {total_to_scrape}")
+    logger.info(f"Runner {args.job_index}/{args.total_jobs} assigned to scrape {total_to_scrape} tenders.")
     
     if total_to_scrape == 0:
-        logger.info("All tenders in this partition are already scraped.")
+        logger.info("No unscraped tasks left for this partition.")
         return
         
     # Start database writer thread

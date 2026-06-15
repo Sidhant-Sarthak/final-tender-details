@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import psycopg2
-from psycopg2.extras import execute_values
+from psycopg2.extras import execute_values, RealDictCursor
 
 app = FastAPI(title="CPPP Scraper Production API")
 security = HTTPBearer()
@@ -30,18 +30,58 @@ def get_db():
     finally:
         conn.close()
 
+@app.get("/api/tenders", dependencies=[Depends(verify_token)])
+def get_tenders_partition(job_index: int, total_jobs: int, conn = Depends(get_db)):
+    """
+    Fetches the remaining active tenders that have NOT been scraped yet,
+    and returns a specific partition slice for the requested runner.
+    """
+    if total_jobs <= 0 or job_index < 0 or job_index >= total_jobs:
+        raise HTTPException(status_code=400, detail="Invalid partition arguments")
+        
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        # Get active tenders that don't have scraped details yet
+        query = """
+            SELECT t.internal_id, t.tender_id, t.detail_url
+            FROM tenders t
+            LEFT JOIN tender_details d ON t.internal_id = d.internal_id
+            WHERE t.status = 'active' AND d.internal_id IS NULL
+            ORDER BY t.internal_id;
+        """
+        cursor.execute(query)
+        all_tenders = cursor.fetchall()
+        
+        total_tenders = len(all_tenders)
+        if total_tenders == 0:
+            return {"tenders": []}
+            
+        # Slice into chunks
+        chunk_size = (total_tenders + total_jobs - 1) // total_jobs
+        start_idx = job_index * chunk_size
+        end_idx = min(start_idx + chunk_size, total_tenders)
+        
+        my_tenders = all_tenders[start_idx:end_idx]
+        return {
+            "total_unscraped": total_tenders,
+            "partition_size": len(my_tenders),
+            "tenders": my_tenders
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+
 @app.post("/api/tender-details/check-batch", dependencies=[Depends(verify_token)])
 def check_batch_existence(internal_ids: List[str], conn = Depends(get_db)):
     """
     Checks multiple internal_ids in one single request.
-    Drastically reduces network requests between GHA and your VPS.
     """
     if not internal_ids:
         return {"exists": []}
     
     cursor = conn.cursor()
     try:
-        # PostgreSQL syntax for matching array list
         cursor.execute(
             "SELECT internal_id FROM tender_details WHERE internal_id IN %s;",
             (tuple(internal_ids),)
