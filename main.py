@@ -49,7 +49,7 @@ def get_tenders_partition(job_index: int, total_jobs: int, conn = Depends(get_db
             FROM tenders t
             LEFT JOIN tender_details d ON t.internal_id = d.internal_id
             WHERE d.internal_id IS NULL
-              AND (abs(('x' || substring(md5(t.internal_id) from 1 for 8))::bit(32)::int) % %s) = %s
+              AND MOD(abs(('x' || substring(md5(t.internal_id) from 1 for 8))::bit(32)::int), %s) = %s
             ORDER BY t.internal_id;
         """
         cursor.execute(query, (total_jobs, job_index))
