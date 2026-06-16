@@ -55,15 +55,8 @@ def get_tenders_partition(job_index: int, total_jobs: int, conn = Depends(get_db
         cursor.execute(query, (job_index,))
         my_tenders = cursor.fetchall()
         
-        # 2. Get total remaining count for statistics
-        cursor.execute("""
-            SELECT count(*) as count 
-            FROM tenders t
-            LEFT JOIN tender_details d ON t.internal_id = d.internal_id
-            WHERE d.internal_id IS NULL;
-        """)
-        total_stats = cursor.fetchone()
-        total_unscraped = total_stats["count"] if total_stats else len(my_tenders)
+        # 2. Skip slow global unscraped query to ensure sub-millisecond API response
+        total_unscraped = -1
         
         return {
             "total_unscraped": total_unscraped,
