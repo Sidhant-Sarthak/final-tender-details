@@ -12,6 +12,7 @@ from queue import Queue, Empty
 from concurrent.futures import ThreadPoolExecutor
 import requests
 import urllib3
+from bs4 import BeautifulSoup
 
 # Suppress SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
