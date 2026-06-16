@@ -251,10 +251,17 @@ def worker_thread(row, stats):
                         })
                         success = True
                         break
-            
+                    else:
+                        logger.warning(f"Thread failed parsing HTML table tags for {tender_id} (URL: {detail_url})")
+                else:
+                    logger.warning(f"Thread got blocked/redirected for {tender_id} (Response URL: {response.url}, Text length: {len(response.text)})")
+            else:
+                logger.warning(f"Thread got HTTP {response.status_code} for {tender_id}")
+                
             retries += 1
             time.sleep(random.uniform(0.5, 1.5))
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Connection error/exception for {tender_id}: {e}")
             retries += 1
             time.sleep((BACKOFF_FACTOR ** retries) + random.uniform(0.5, 1.5))
             
