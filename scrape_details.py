@@ -88,7 +88,7 @@ def api_writer_worker():
             
             batch.append(item)
             
-            if len(batch) >= batch_size or (time.time() - last_commit > 2.0 and batch):
+            if len(batch) >= batch_size or (time.time() - last_commit > 10.0 and batch):
                 send_batch(batch)
                 batch = []
                 last_commit = time.time()
