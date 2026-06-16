@@ -128,9 +128,14 @@ def get_tenders_from_api(job_index: int, total_jobs: int) -> list:
     return []
 
 def construct_bypass_url(detail_url):
-    """Transforms captcha-bound URL into a bypassed URL."""
+    """Transforms captcha-bound URL into a bypassed URL, supporting both standard and MMP portal URLs."""
     try:
-        url_base, b64_hash = detail_url.split("/tendersfullview/")
+        # Detect whether URL is for Central or State MMP portals
+        split_marker = "/tendersfullview/"
+        if "/tendersfullviewmmp/" in detail_url:
+            split_marker = "/tendersfullviewmmp/"
+            
+        url_base, b64_hash = detail_url.split(split_marker)
         parts = b64_hash.split("A13h1")
         
         # Update timestamp block (index 3) with current Unix epoch
@@ -143,7 +148,7 @@ def construct_bypass_url(detail_url):
         elif len(parts) > 6:
             parts[6] = BYPASS_KEY_B64
             
-        return f"{url_base}/tendersfullview/{'A13h1'.join(parts)}"
+        return f"{url_base}{split_marker}{'A13h1'.join(parts)}"
     except Exception as e:
         logger.error(f"Error constructing bypass URL from {detail_url}: {e}")
         return detail_url
