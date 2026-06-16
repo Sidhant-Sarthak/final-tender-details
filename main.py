@@ -46,9 +46,10 @@ def get_tenders_partition(job_index: int, total_jobs: int, conn = Depends(get_db
         query = """
             SELECT t.internal_id, t.tender_id, t.detail_url
             FROM tenders t
-            LEFT JOIN tender_details d ON t.internal_id = d.internal_id
             WHERE t.partition_id = %s
-              AND d.internal_id IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM tender_details d WHERE d.internal_id = t.internal_id
+              )
             ORDER BY t.internal_id;
         """
         cursor.execute(query, (job_index,))
