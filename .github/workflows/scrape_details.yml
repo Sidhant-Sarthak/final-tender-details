@@ -30,7 +30,7 @@ jobs:
           SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
         run: |
-          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 40
+          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 100
 
   # ================= SESSION 2 (Hours 5.5 - 11) =================
   session_2:
@@ -59,7 +59,7 @@ jobs:
           SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
         run: |
-          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 40
+          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 100
 
   # ================= SESSION 3 (Hours 11 - 16.5) =================
   session_3:
@@ -88,4 +88,4 @@ jobs:
           SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
         run: |
-          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 40
+          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 100
