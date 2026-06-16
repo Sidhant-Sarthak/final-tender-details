@@ -266,7 +266,7 @@ def worker_thread(row, stats):
         stats["processed"] += 1
         total = stats["total"]
         processed = stats["processed"]
-        if processed % 100 == 0 or processed == total:
+        if processed % 10 == 0 or processed == total:
             logger.info(f"Progress: {processed}/{total} processed ({stats['success']} successful, {stats['failed']} failed)")
 
 def main():
