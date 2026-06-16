@@ -41,12 +41,12 @@ def get_tenders_partition(job_index: int, total_jobs: int, conn = Depends(get_db
         
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        # Get active tenders that don't have scraped details yet
+        # Get all tenders (active and archived) that don't have scraped details yet
         query = """
             SELECT t.internal_id, t.tender_id, t.detail_url
             FROM tenders t
             LEFT JOIN tender_details d ON t.internal_id = d.internal_id
-            WHERE t.status = 'active' AND d.internal_id IS NULL
+            WHERE d.internal_id IS NULL
             ORDER BY t.internal_id;
         """
         cursor.execute(query)
