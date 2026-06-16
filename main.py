@@ -33,37 +33,40 @@ def get_db():
 @app.get("/api/tenders", dependencies=[Depends(verify_token)])
 def get_tenders_partition(job_index: int, total_jobs: int, conn = Depends(get_db)):
     """
-    Fetches the remaining active tenders that have NOT been scraped yet,
-    and returns a specific partition slice for the requested runner.
+    Queries and returns the assigned tenders for a specific runner index.
+    Utilizes SQL Hash Modulo Partitioning to guarantee 0% duplicate overlap
+    between parallel runners, independent of boot-time differences.
     """
     if total_jobs <= 0 or job_index < 0 or job_index >= total_jobs:
         raise HTTPException(status_code=400, detail="Invalid partition arguments")
         
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        # Get all tenders (active and archived) that don't have scraped details yet
+        # 1. Fetch only the hash-modulo slice directly via PostgreSQL
+        # Converts first 8 hex chars of MD5(internal_id) to integer, uses abs() to keep positive, and takes modulo
         query = """
             SELECT t.internal_id, t.tender_id, t.detail_url
             FROM tenders t
             LEFT JOIN tender_details d ON t.internal_id = d.internal_id
             WHERE d.internal_id IS NULL
+              AND (abs(('x' || substring(md5(t.internal_id) from 1 for 8))::bit(32)::int) % %s) = %s
             ORDER BY t.internal_id;
         """
-        cursor.execute(query)
-        all_tenders = cursor.fetchall()
+        cursor.execute(query, (total_jobs, job_index))
+        my_tenders = cursor.fetchall()
         
-        total_tenders = len(all_tenders)
-        if total_tenders == 0:
-            return {"tenders": []}
-            
-        # Slice into chunks
-        chunk_size = (total_tenders + total_jobs - 1) // total_jobs
-        start_idx = job_index * chunk_size
-        end_idx = min(start_idx + chunk_size, total_tenders)
+        # 2. Get total remaining count for statistics
+        cursor.execute("""
+            SELECT count(*) as count 
+            FROM tenders t
+            LEFT JOIN tender_details d ON t.internal_id = d.internal_id
+            WHERE d.internal_id IS NULL;
+        """)
+        total_stats = cursor.fetchone()
+        total_unscraped = total_stats["count"] if total_stats else len(my_tenders)
         
-        my_tenders = all_tenders[start_idx:end_idx]
         return {
-            "total_unscraped": total_tenders,
+            "total_unscraped": total_unscraped,
             "partition_size": len(my_tenders),
             "tenders": my_tenders
         }
