@@ -19,7 +19,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configuration
 LOG_FILE = "scrape_details.log"
-MAX_THREADS = 10
+MAX_THREADS = 20
 MAX_RETRIES = 5
 BACKOFF_FACTOR = 1.5
 
