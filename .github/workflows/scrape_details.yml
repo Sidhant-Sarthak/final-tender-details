@@ -4,14 +4,13 @@ on:
   workflow_dispatch: # Allows manual trigger from the Actions tab
 
 jobs:
-  # ================= SESSION 1 (Hours 0 - 5.5) =================
+  # ================= SESSION 1 =================
   session_1:
     name: Scrape Details Session 1
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # Spin up 20 parallel runner VMs
         job_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     steps:
       - name: Checkout repository
@@ -32,11 +31,11 @@ jobs:
         run: |
           python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 50
 
-  # ================= SESSION 2 (Hours 5.5 - 11) =================
+  # ================= SESSION 2 =================
   session_2:
     name: Scrape Details Session 2
     needs: session_1
-    if: always() # Ensures session 2 runs even if some runners in session 1 encountered errors
+    if: always()
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -61,10 +60,213 @@ jobs:
         run: |
           python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 50
 
-  # ================= SESSION 3 (Hours 11 - 16.5) =================
+  # ================= SESSION 3 =================
   session_3:
     name: Scrape Details Session 3
     needs: session_2
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        job_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: Run Scraper Matrix
+        env:
+          SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+        run: |
+          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 50
+
+  # ================= SESSION 4 =================
+  session_4:
+    name: Scrape Details Session 4
+    needs: session_3
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        job_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: Run Scraper Matrix
+        env:
+          SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+        run: |
+          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 50
+
+  # ================= SESSION 5 =================
+  session_5:
+    name: Scrape Details Session 5
+    needs: session_4
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        job_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: Run Scraper Matrix
+        env:
+          SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+        run: |
+          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 50
+
+  # ================= SESSION 6 =================
+  session_6:
+    name: Scrape Details Session 6
+    needs: session_5
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        job_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: Run Scraper Matrix
+        env:
+          SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+        run: |
+          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 50
+
+  # ================= SESSION 7 =================
+  session_7:
+    name: Scrape Details Session 7
+    needs: session_6
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        job_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: Run Scraper Matrix
+        env:
+          SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+        run: |
+          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 50
+
+  # ================= SESSION 8 =================
+  session_8:
+    name: Scrape Details Session 8
+    needs: session_7
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        job_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: Run Scraper Matrix
+        env:
+          SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+        run: |
+          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 50
+
+  # ================= SESSION 9 =================
+  session_9:
+    name: Scrape Details Session 9
+    needs: session_8
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        job_index: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml
+
+      - name: Run Scraper Matrix
+        env:
+          SCRAPER_API_URL: ${{ secrets.SCRAPER_API_URL }}
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+        run: |
+          python scrape_details.py --job-index ${{ matrix.job_index }} --total-jobs 50
+
+  # ================= SESSION 10 =================
+  session_10:
+    name: Scrape Details Session 10
+    needs: session_9
     if: always()
     runs-on: ubuntu-latest
     strategy:
