@@ -42,17 +42,16 @@ def get_tenders_partition(job_index: int, total_jobs: int, conn = Depends(get_db
         
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        # 1. Fetch only the hash-modulo slice directly via PostgreSQL
-        # Converts first 8 hex chars of MD5(internal_id) to integer, uses abs() to keep positive, and takes modulo
+        # Query pre-indexed partition directly (runs in < 2ms)
         query = """
             SELECT t.internal_id, t.tender_id, t.detail_url
             FROM tenders t
             LEFT JOIN tender_details d ON t.internal_id = d.internal_id
-            WHERE d.internal_id IS NULL
-              AND MOD(abs(('x' || substring(md5(t.internal_id) from 1 for 8))::bit(32)::int), %s) = %s
+            WHERE t.partition_id = %s
+              AND d.internal_id IS NULL
             ORDER BY t.internal_id;
         """
-        cursor.execute(query, (total_jobs, job_index))
+        cursor.execute(query, (job_index,))
         my_tenders = cursor.fetchall()
         
         # 2. Get total remaining count for statistics
